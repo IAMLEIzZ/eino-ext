@@ -73,6 +73,7 @@ type ChatModel struct {
 }
 
 // NewChatModel initializes a new instance of ChatModel with provided configuration.
+// 入口，创建一个新的模型
 func NewChatModel(_ context.Context, config *ChatModelConfig) (*ChatModel, error) {
 	if config == nil {
 		return nil, errors.New("config must not be nil")
@@ -85,7 +86,8 @@ func NewChatModel(_ context.Context, config *ChatModelConfig) (*ChatModel, error
 	} else {
 		httpClient = &http.Client{Timeout: config.Timeout}
 	}
-
+	
+	// 解析出 URL 的各部分
 	baseURL, err := url.Parse(config.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid base URL: %w", err)
@@ -96,10 +98,12 @@ func NewChatModel(_ context.Context, config *ChatModelConfig) (*ChatModel, error
 	return &ChatModel{
 		cli:    cli,
 		config: config,
-
+		
+		// 工具列表
 		tools: make([]*schema.ToolInfo, 0),
 	}, nil
 }
+
 func (cm *ChatModel) Generate(ctx context.Context, input []*schema.Message, opts ...model.Option) (outMsg *schema.Message, err error) {
 	ctx = callbacks.EnsureRunInfo(ctx, cm.GetType(), components.ComponentOfChatModel)
 
