@@ -104,11 +104,13 @@ func NewChatModel(_ context.Context, config *ChatModelConfig) (*ChatModel, error
 	}, nil
 }
 
+// 模型生成
 func (cm *ChatModel) Generate(ctx context.Context, input []*schema.Message, opts ...model.Option) (outMsg *schema.Message, err error) {
 	ctx = callbacks.EnsureRunInfo(ctx, cm.GetType(), components.ComponentOfChatModel)
 
 	var req *api.ChatRequest
 	var cbInput *model.CallbackInput
+	// eino req 协议 -> ollama req 协议
 	req, cbInput, err = cm.genRequest(ctx, false, input, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error generating request: %w", err)
@@ -242,11 +244,14 @@ func (cm *ChatModel) IsCallbacksEnabled() bool {
 	return true
 }
 
+// Message 转化为 ollama api 格式
 func (cm *ChatModel) genRequest(_ context.Context, stream bool, in []*schema.Message, opts ...model.Option) (
 	req *api.ChatRequest, cbInput *model.CallbackInput, err error) {
 
 	var (
+		// 特殊模型的独有参数
 		o  = &options{}
+		// 模型无关的参数
 		mo = &model.Options{
 			Model: &cm.config.Model,
 			Tools: cm.tools,
@@ -282,15 +287,19 @@ func (cm *ChatModel) genRequest(_ context.Context, stream bool, in []*schema.Mes
 	}
 
 	reqOptions := make(map[string]any, 5)
+	// 配置转化为字节数组
 	optBytes, err := json.Marshal(ollamaOptions)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error marshal options: %w", err)
 	}
+	// 再利用 Unmarshal 把 json 转化为 map[string]any
+	// 这里设计是利用 json 的序列化 -> 反序列化，从而实现下游数据不必关心数据类型
 	err = json.Unmarshal(optBytes, &reqOptions)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error unmarshal options: %w", err)
 	}
-
+	
+	// Message 协议转换
 	msgs, err := toOllamaMessages(in)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error convert messages: %w", err)
@@ -299,12 +308,14 @@ func (cm *ChatModel) genRequest(_ context.Context, stream bool, in []*schema.Mes
 	if len(mo.AllowedToolNames) > 0 {
 		return nil, nil, fmt.Errorf("not support allowed tool names parameter")
 	}
-
+	
+	// Tool 协议转换
 	tools, err := toOllamaTools(mo.Tools)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error convert tools: %w", err)
 	}
-
+	
+	// 构建 ollama 的最终请求
 	req = &api.ChatRequest{
 		Model:    *commonOptions.Model,
 		Messages: msgs,
@@ -320,7 +331,8 @@ func (cm *ChatModel) genRequest(_ context.Context, stream bool, in []*schema.Mes
 	if cm.config.KeepAlive != nil {
 		req.KeepAlive = &api.Duration{Duration: *cm.config.KeepAlive}
 	}
-
+	
+	// 构建eino框架回调的快照
 	cbInput = &model.CallbackInput{
 		Messages: in,
 		Tools:    commonOptions.Tools,
@@ -502,7 +514,8 @@ func toOllamaTools(einoTools []*schema.ToolInfo) ([]api.Tool, error) {
 	for _, einoTool := range einoTools {
 		properties := make(map[string]api.ToolProperty)
 		var required []string
-
+		
+		// Tool 的参数和描述
 		openTool, err := einoTool.ParamsOneOf.ToJSONSchema()
 		if err != nil {
 			return nil, err

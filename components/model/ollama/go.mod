@@ -11,6 +11,8 @@ require (
 	github.com/stretchr/testify v1.10.0
 )
 
+replace github.com/cloudwego/eino => ../../../../eino
+
 require github.com/eino-contrib/ollama v0.1.0
 
 require (
